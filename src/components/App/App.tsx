@@ -1,15 +1,57 @@
-import { FC } from "react";
-// import InactivityDetector from "../InactivityDetector/InactivityDetector";
-import useIdle from "../../hooks/useIdle";
-import style from "./App.module.scss";
+import { FC, useEffect, useState } from "react";
+import { getUsers } from "../../services/user2";
+import useDebounce from "../../hooks/useDebounce";
+import { UserType } from "../../models/user2";
+// import style from "./App.module.scss";
 
 const App: FC = () => {
-  const isIdle = useIdle(3000); // 3 seconds
+  const [data, setData] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const data = await getUsers({ search: debouncedSearchTerm });
+        setData(data);
+      } catch (error) {
+        setError((error as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [debouncedSearchTerm]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
   return (
-    <div className={style["app"]}>
-      {/* <InactivityDetector /> */}
-      {isIdle ? <p>User is idle</p> : <p>User is active</p>}
-    </div>
+    <>
+      <input
+        type="search"
+        placeholder="Search"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        autoFocus
+      />
+      <ul>
+        {data.map((user) => (
+          <li key={user._id}>{user.name}</li>
+        ))}
+      </ul>
+    </>
   );
 };
 
